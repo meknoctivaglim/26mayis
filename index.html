@@ -102,10 +102,24 @@
                 if (pageIndex < 0 || pageIndex >= totalPages) return;
 
                 pdfPages.forEach((page, index) => {
+                    const iframe = page.querySelector('iframe');
                     if (index === pageIndex) {
                         page.classList.add('active');
+                        // iframe'i sadece gerçekten görünür hale geldiğinde ve src'si varsa yeniden yükle
+                        if (iframe && iframe.src && !iframe.dataset.loadedOnce) {
+                            // iframe.src = iframe.src; // Bu bazen cache nedeniyle çalışmayabilir
+                            // Daha güvenilir bir yöntem, src'yi kısa bir süreliğine değiştirip geri almak
+                            // veya bir query parametresi eklemektir.
+                            // En basit yöntem src'yi tekrar atamak, ama önce bunu deneyelim.
+                            // Eğer bu işe yaramazsa, iframe'in src'sine benzersiz bir query parametresi ekleyebiliriz.
+                            iframe.contentWindow.location.reload(); // Bu daha güçlü bir yeniden yükleme komutu
+                            iframe.dataset.loadedOnce = "true"; // Her iframe için bir kere yüklendi işareti
+                        }
                     } else {
                         page.classList.remove('active');
+                        if (iframe) {
+                             delete iframe.dataset.loadedOnce; // Başka sefere tekrar yüklenmesi için işareti kaldır
+                        }
                     }
                 });
                 currentPage = pageIndex;
@@ -125,7 +139,13 @@
             }
             
             // Başlangıç durumu
-            showPage(currentPage); // İlk sayfayı göster ve butonları ayarla
+            // İlk sayfanın iframe'ini özel olarak ele alalım, çünkü başlangıçta aktif.
+            const initialIframe = pdfPages[currentPage].querySelector('iframe');
+            if (initialIframe && initialIframe.src) {
+                 // initialIframe.src = initialIframe.src; // Yeniden yükleme için
+                 // Veya doğrudan showPage çağrısı zaten bunu yapacak.
+            }
+            showPage(currentPage); // İlk sayfayı göster, butonları ayarla ve gerekirse iframe'i yükle
 
             if (prevBtn) {
                 prevBtn.addEventListener('click', () => {
