@@ -98,6 +98,9 @@
             const totalPages = pdfPages.length;
             let currentPage = 0; // 0-indexed, ilk sayfa başlangıçta aktif
 
+            // Her iframe için ilk yükleme durumunu takip etmek için bir dizi
+            const iframeLoadedState = new Array(totalPages).fill(false);
+
             function showPage(pageIndex) {
                 if (pageIndex < 0 || pageIndex >= totalPages) return;
 
@@ -105,21 +108,23 @@
                     const iframe = page.querySelector('iframe');
                     if (index === pageIndex) {
                         page.classList.add('active');
-                        // iframe'i sadece gerçekten görünür hale geldiğinde ve src'si varsa yeniden yükle
-                        if (iframe && iframe.src && !iframe.dataset.loadedOnce) {
-                            // iframe.src = iframe.src; // Bu bazen cache nedeniyle çalışmayabilir
-                            // Daha güvenilir bir yöntem, src'yi kısa bir süreliğine değiştirip geri almak
-                            // veya bir query parametresi eklemektir.
-                            // En basit yöntem src'yi tekrar atamak, ama önce bunu deneyelim.
-                            // Eğer bu işe yaramazsa, iframe'in src'sine benzersiz bir query parametresi ekleyebiliriz.
-                            iframe.contentWindow.location.reload(); // Bu daha güçlü bir yeniden yükleme komutu
-                            iframe.dataset.loadedOnce = "true"; // Her iframe için bir kere yüklendi işareti
+                        // iframe'i sadece gerçekten görünür hale geldiğinde, src'si varsa ve daha önce yüklenmediyse yeniden yükle
+                        if (iframe && iframe.src && !iframeLoadedState[index]) {
+                            // console.log(`Loading iframe for page ${index}`);
+                            const currentSrc = iframe.src; // Mevcut src'yi sakla
+                            iframe.src = "about:blank"; // Önce boşalt (bazı tarayıcılarda cache sorununu çözebilir)
+                            setTimeout(() => { // Kısa bir gecikmeyle src'yi geri ata
+                               iframe.src = currentSrc;
+                               iframeLoadedState[index] = true; // Yüklendi olarak işaretle
+                            }, 50); // 50ms gecikme, hemen atama bazen işe yaramayabilir
+                        } else if (iframe && iframe.src && iframeLoadedState[index]) {
+                            // Zaten yüklendiyse bir şey yapma, sadece göster
+                            // console.log(`Iframe for page ${index} already loaded`);
                         }
                     } else {
                         page.classList.remove('active');
-                        if (iframe) {
-                             delete iframe.dataset.loadedOnce; // Başka sefere tekrar yüklenmesi için işareti kaldır
-                        }
+                        // Pasif hale gelen iframe'ler için özel bir işlem gerekmiyor
+                        // iframeLoadedState[index] = false; // Bu satırı eklerseniz, her geri dönüşte yeniden yükler
                     }
                 });
                 currentPage = pageIndex;
@@ -139,13 +144,7 @@
             }
             
             // Başlangıç durumu
-            // İlk sayfanın iframe'ini özel olarak ele alalım, çünkü başlangıçta aktif.
-            const initialIframe = pdfPages[currentPage].querySelector('iframe');
-            if (initialIframe && initialIframe.src) {
-                 // initialIframe.src = initialIframe.src; // Yeniden yükleme için
-                 // Veya doğrudan showPage çağrısı zaten bunu yapacak.
-            }
-            showPage(currentPage); // İlk sayfayı göster, butonları ayarla ve gerekirse iframe'i yükle
+            showPage(currentPage); // İlk sayfayı göster ve butonları ayarla, gerekirse iframe'i yükle
 
             if (prevBtn) {
                 prevBtn.addEventListener('click', () => {
